@@ -25,11 +25,10 @@ class SPoly:
             self.points.append([v_len.x, v_len.y])
             v_len.rotate(deg)
     
-    def update(self):
-        self.draw_rays()
-                
+    def update(self):                
         # self.check_mouse()
         self.update_avp()
+        self.draw_rays()
         
         if self.is_collide:
             self.line_color = (255, 0, 0)
@@ -58,7 +57,7 @@ class SPoly:
                     self.pos.x -= p[0]
                 else:
                     self.pos.x += width - p[0]
-            if r[1] <= 0 or r[1] >= height:
+            if r[1] <= 0 or r[1] > height:
                 v_x_dis = (0, p[1] - r[1])
                 self.acc.add(Vector(*v_x_dis))
                 if r[1] <= 0:
@@ -90,58 +89,46 @@ class SPoly:
         for obj in objs:
             if obj is self:
                 continue
-            print("checking collision")
-            print("vel",str(self.vel))
-            s_col = self.check_collision(obj)
+            s_col = self.check_collision(self.get_point_rays(), obj.get_current_points())
             if s_col.is_collide:
-                print("displacement n:", self.np,"v: ", str(s_col.v))
-                s_col.v.mult(-1)
-                # s_col.v.add(self.pos)
-                # stroke(255)
-                # line(self.x, self.y, self.x+s_col.v.x, self.y+s_col.v.y)
-                o_col = obj.check_collision(self)
+                o_col = self.check_collision(obj.get_current_points(), self.get_point_rays())
                 if o_col.is_collide:
                     self.is_collide = True
                     d_v = s_col.v
                     if o_col.v.length() < s_col.v.length():
                         d_v = o_col.v
                     d_v = self.calc_displace_direction(obj, d_v)
-                    # self.vel.mult(0)
                     self.acc.add(d_v)
-                    
-                    stroke(255)
-                    line(self.pos.x, self.pos.y, d_v.x + self.pos.x, d_v.y + self.pos.y)
+                    # stroke(255)
+                    # line(self.pos.x, self.pos.y, d_v.x + self.pos.x, d_v.y + self.pos.y)
     
     def calc_displace_direction(self, poly, d_v):
+        d_v.x = abs(d_v.x)
+        d_v.y = abs(d_v.y)
         if self.pos.x < poly.pos.x:
-            d_v.x = -abs(d_v.x)
-        else:
-            d_v.x = abs(d_v.x)
+            d_v.x *= -1
         if self.pos.y < poly.pos.y:
-            d_v.y = -abs(d_v.y)
-        else:
-            d_v.y = abs(d_v.y)
+            d_v.y *= -1
         return d_v
     
-    def check_collision(self, poly):
-        l_p = len(self.points)
+    def check_collision(self, s_points, p_points):
+        s_len = len(s_points)
         displacement = [0, 0]
         min_dis = None
-        for n in range(l_p):
-            if n + 1 < l_p:
-                axes = sub_vect(self.points[n], self.points[n + 1])
+        for n in range(s_len):
+            if n + 1 < s_len:
+                axes = sub_vect(s_points[n], s_points[n + 1])
             else:
-                axes = sub_vect(self.points[n], self.points[0])
+                axes = sub_vect(s_points[n], s_points[0])
             axes_normal = Vector(*axes).rotate(90).normalize()
-            s_p = self.axes_projections(axes_normal, self.get_current_points())
-            p_p = poly.axes_projections(axes_normal, poly.get_current_points())
+            s_p = self.axes_projections(axes_normal, s_points)
+            p_p = self.axes_projections(axes_normal, p_points)
             if s_p[0] >= p_p[1] or s_p[1] <= p_p[0]:
                 return Collision(False, displacement)
             new_dis = self.find_dis_len(s_p, p_p)
             if min_dis is None or abs(new_dis) < min_dis:
                 min_dis = abs(new_dis)
                 displacement = axes_normal.mult(min_dis)
-        print("min_dis", min_dis)
         return Collision(True, displacement)
     
     def find_dis_len(self, l_1, l_2):
